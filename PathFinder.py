@@ -175,6 +175,78 @@ class PathfindingApp:
                 color = self.canvas.itemcget(self.cells[r][c], "fill")
                 if color in [COLORS["path"], COLORS["frontier"], COLORS["visited"]]:
                     self.canvas.itemconfig(self.cells[r][c], fill=COLORS["empty"])
+        
+        # 2. Re-plan
+        self.current_path = self.search(self.agent_pos)
+        
+        if not self.current_path:
+            messagebox.showinfo("Blocked", "Path is blocked!")
+            return
+
+        # Update remaining and accumulated visuals
+        rem_cost = len(self.current_path)
+        self.lbl_remain.config(text=f"Remaining Cost: {rem_cost}")
+        self.lbl_accum.config(text=f"Accumulated Cost: {self.steps_taken + rem_cost}")
+
+        # 3. Draw Path
+        for r, c in self.current_path:
+            if (r, c) != self.goal_pos:
+                self.canvas.itemconfig(self.cells[r][c], fill=COLORS["path"])
+
+        # 4. Take Step
+        next_step = self.current_path[0]
+        
+        if self.dynamic_var.get() and random.random() < 0.15:
+            self.spawn_strategic_wall()
+
+        if self.grid_data[next_step[0]][next_step[1]] == 1:
+            self.root.after(100, self.move_agent)
+        else:
+            if self.agent_pos != self.start_pos:
+                self.canvas.itemconfig(self.cells[self.agent_pos[0]][self.agent_pos[1]], fill=COLORS["empty"])
+            
+            self.agent_pos = next_step
+            self.steps_taken += 1
+            
+            if self.agent_pos == self.goal_pos:
+                messagebox.showinfo("Goal Reached", 
+                    f"Final Summary:\n"
+                    f"Total Accumulated Cost: {self.steps_taken}\n"
+                    f"Total Calculation Time: {self.total_search_time:.2f}ms")
+            else:
+                self.root.after(200, self.move_agent)
+
+    def spawn_random_wall(self):
+        r, c = random.randint(0, self.rows-1), random.randint(0, self.cols-1)
+        if (r, c) not in [self.agent_pos, self.goal_pos, self.start_pos]:
+            self.grid_data[r][c] = 1
+            self.canvas.itemconfig(self.cells[r][c], fill=COLORS["wall"])
+
+    def spawn_strategic_wall(self):
+        # We only spawn a wall if there is a path to block
+        # and we pick a spot that isn't the immediate next step (to give it a chance)
+        if self.current_path and len(self.current_path) > 2:
+            # Pick a spot 2 to 5 steps ahead on the path
+            look_ahead = random.randint(2, min(5, len(self.current_path) - 1))
+            r, c = self.current_path[look_ahead]
+            
+            # Ensure we don't accidentally overwrite the goal
+            if (r, c) != self.goal_pos:
+                self.grid_data[r][c] = 1
+                self.canvas.itemconfig(self.cells[r][c], fill=COLORS["wall"])
+                print(f"Strategic Block at: {r}, {c}")
+    
+    def random_maze(self, density):
+        self.initialize_grid()
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if random.random() < density:
+                    self.grid_data[r][c] = 1
+                    self.canvas.itemconfig(self.cells[r][c], fill=COLORS["wall"])
+
+    def update_metrics(self, v, c, t):
+        self.lbl_visited.config(text=f"Nodes Visited: {v}")
+        self.lbl_time.config(text=f"Last Search Time: {t:.2f}ms")
 
 if __name__ == "__main__":
     root = tk.Tk()
