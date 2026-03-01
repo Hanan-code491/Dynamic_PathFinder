@@ -103,7 +103,7 @@ class PathfindingApp:
                 x2, y2 = x1 + CELL_SIZE, y1 + CELL_SIZE
                 rect = self.canvas.create_rectangle(x1, y1, x2, y2, fill=COLORS["empty"], outline="#ddd")
                 self.cells[r][c] = rect
-                
+
     def handle_click(self, event):
         col, row = event.x // CELL_SIZE, event.y // CELL_SIZE
         if 0 <= row < self.rows and 0 <= col < self.cols:
@@ -124,6 +124,57 @@ class PathfindingApp:
         if self.heur_var.get() == "Manhattan":
             return abs(r1 - r2) + abs(c1 - c2)
         return math.sqrt((r1 - r2)**2 + (c1 - c2)**2)
+    
+    def search(self, start_node):
+        if not self.goal_pos: return None
+        start_t = time.perf_counter()
+        pq = []
+        heappush(pq, (0, 0, start_node, []))
+        visited = set()
+        nodes_expanded = 0
+
+        while pq:
+            f, g, curr, path = heappop(pq)
+            if curr in visited: continue
+            visited.add(curr)
+            nodes_expanded += 1
+            
+            if curr != start_node and curr != self.goal_pos:
+                self.canvas.itemconfig(self.cells[curr[0]][curr[1]], fill=COLORS["visited"])
+
+            if curr == self.goal_pos:
+                exec_time = (time.perf_counter() - start_t) * 1000
+                self.total_search_time += exec_time # Accumulate calculation time
+                self.update_metrics(nodes_expanded, len(path), exec_time)
+                return path
+
+            for dr, dc in [(0,1),(0,-1),(1,0),(-1,0)]:
+                nr, nc = curr[0]+dr, curr[1]+dc
+                if 0 <= nr < self.rows and 0 <= nc < self.cols and self.grid_data[nr][nc] == 0:
+                    new_g = g + 1
+                    h = self.get_h((nr, nc), self.goal_pos)
+                    new_f = h if self.algo_var.get() == "Greedy BFS" else new_g + h
+                    heappush(pq, (new_f, new_g, (nr, nc), path + [(nr, nc)]))
+                    if (nr, nc) != self.goal_pos and (nr, nc) not in visited:
+                        self.canvas.itemconfig(self.cells[nr][nc], fill=COLORS["frontier"])
+        return None
+
+    def start_navigation(self):
+        if not self.start_pos or not self.goal_pos:
+            messagebox.showwarning("Error", "Set Start and Goal first!")
+            return
+        self.agent_pos = self.start_pos
+        self.steps_taken = 0
+        self.total_search_time = 0
+        self.move_agent()
+
+    def move_agent(self):
+        # 1. Clear visuals
+        for r in range(self.rows):
+            for c in range(self.cols):
+                color = self.canvas.itemcget(self.cells[r][c], "fill")
+                if color in [COLORS["path"], COLORS["frontier"], COLORS["visited"]]:
+                    self.canvas.itemconfig(self.cells[r][c], fill=COLORS["empty"])
 
 if __name__ == "__main__":
     root = tk.Tk()
