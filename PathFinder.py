@@ -103,6 +103,27 @@ class PathfindingApp:
                 x2, y2 = x1 + CELL_SIZE, y1 + CELL_SIZE
                 rect = self.canvas.create_rectangle(x1, y1, x2, y2, fill=COLORS["empty"], outline="#ddd")
                 self.cells[r][c] = rect
+                
+    def handle_click(self, event):
+        col, row = event.x // CELL_SIZE, event.y // CELL_SIZE
+        if 0 <= row < self.rows and 0 <= col < self.cols:
+            if not self.start_pos:
+                self.start_pos = (row, col)
+                self.canvas.itemconfig(self.cells[row][col], fill=COLORS["start"])
+            elif not self.goal_pos and (row, col) != self.start_pos:
+                self.goal_pos = (row, col)
+                self.canvas.itemconfig(self.cells[row][col], fill=COLORS["goal"])
+            elif (row, col) != self.start_pos and (row, col) != self.goal_pos:
+                self.grid_data[row][col] = 1
+                self.canvas.itemconfig(self.cells[row][col], fill=COLORS["wall"])
+
+    def get_h(self, p1, p2):
+        if not p1 or not p2: return 0
+        r1, c1 = p1
+        r2, c2 = p2
+        if self.heur_var.get() == "Manhattan":
+            return abs(r1 - r2) + abs(c1 - c2)
+        return math.sqrt((r1 - r2)**2 + (c1 - c2)**2)
 
 if __name__ == "__main__":
     root = tk.Tk()
